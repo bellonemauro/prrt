@@ -18,6 +18,7 @@ def wrap_to_0_2pi(theta: float) -> float:
 
 
 def angle_distance(ang_from: float, ang_to: float) -> float:
+    #TODO: define also the frobenius distance -- see comments in the planner
     ang_from = wrap_to_npi_pi(ang_from)
     ang_to = wrap_to_npi_pi(ang_to)
     d = ang_to - ang_from

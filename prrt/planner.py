@@ -82,12 +82,24 @@ class Tree(object):
         plt.show()
 
     def get_nearest_node_av(self, to_node: Node, ptgs: List[PTG]) -> (Node, float):
-        idx_alpha = np.arange(np.deg2rad(-45), np.deg2rad(45) + 0.01, np.deg2rad(3))
+        # MB: here the parameters I suppose are the same as in main.py
+        #     PTG_phi_lower_bound, PTG_phi_upper_bound and PTG_phi_resolution
+        #     TODO: fix parameters
+        #the following definitions save time in computation
+        _phi_lower_bound = np.deg2rad(-45)
+        _phi_upper_bound = np.deg2rad(45.01)
+        rad_of_45_deg = np.deg2rad(45)
+        _phi_resolution = np.deg2rad(3)
+        # idx_alpha = np.arange(np.deg2rad(-45), np.deg2rad(45) + 0.01, np.deg2rad(3))
+        idx_alpha = np.arange(_phi_lower_bound, _phi_upper_bound, _phi_resolution)
         d_min = float('inf')
         ptg_nearest_idx = -1
         node_min = None
         for node in self.nodes:
-            ptg_idx = int(np.rint((node.phi + np.deg2rad(45)) / np.deg2rad(3)))
+            #ptg_idx = int(np.rint((node.phi + np.deg2rad(45)) / np.deg2rad(3))) #TODO fix params
+            ptg_idx = int(np.rint((node.phi + rad_of_45_deg) / _phi_resolution)) #TODO fix params
+            # TODO: does deg2rad(3) refer to the resolution?
+            # TODO: does rad_of_45_deg refer to the upper boud?
             # ToDo: The check below should be refactored into ptg.build_cpoints
             if ptg_idx < 0 or ptg_idx >= len(ptgs):
                 continue
@@ -148,6 +160,8 @@ class Planner(object):
         counter = 0
         min_goal_dist_yet = float('inf')
         while not solution_found and counter < 2000:
+            #TODO: this means that the minimum of cycles is 2000? why?
+            #      if the solution is found in less than 2000 operation, the cycle continues?
             counter += 1
             rand_pose = self.world.get_random_pose(goal_pose)
             candidate_new_nodes = sorteddict.SortedDict()
@@ -162,19 +176,28 @@ class Planner(object):
                 D_max = min(2., ptg.distance_ref)  # ToDo : make 2. a configurable parameter
                 is_exact, k_rand, d_rand = ptg.inverse_WS2TP(rand_pose_rel)
                 d_rand *= ptg.distance_ref
-                max_dist_for_obstacles = 1.5 * ptg.distance_ref
-                obstacles_rel = self.world.transform_point_cloud(ptg_nearest_pose, max_dist_for_obstacles)
-                obstacles_TP = self.transform_toTP_obstacles(ptg, obstacles_rel, max_dist_for_obstacles)
+                max_dist_for_obstacles = 1.5 * ptg.distance_ref #is this a max or min distance to obstacle?
+                # This is not entirely clear,
+                # what I expect is that distance ref is the maximum distance that the PTG know in the world
+                # if an obstacle is closer than a minimum distance than there is a possible collision
+                # so we keep further ---
+                # I expect a min_distance_from_obstacles to be a defined parameter less then ptg.distance_ref
+                obstacles_rel = self.world.transform_point_cloud(ptg_nearest_pose, max_dist_for_obstacles) # obstacles in real world
+                obstacles_TP = self.transform_toTP_obstacles(ptg, obstacles_rel, max_dist_for_obstacles) # obstacles in TP space
                 d_free = obstacles_TP[k_rand]
                 d_new = min(D_max, d_free)
-                if d_free >= d_new:
-                    # get cpoint at d_new
+                if d_free >= d_new:    # this is the actual check for collision
+                    # get cpoint at d_new, k_rand
                     cpoint = ptg.get_cpoint_at_d(d_new, k_rand)
                     new_pose_rel = cpoint.pose.copy()
                     new_pose = ptg_nearest_pose + new_pose_rel  # type: PoseR2S1
                     accept_this_node = True
                     goal_dist = new_pose.distance_2d(goal_pose)
                     goal_ang = abs(helper.angle_distance(new_pose.theta, goal_pose.theta))
+                    #TODO distance in terms of pose   --- if I am not wrong the formula is the following
+                    #TODO   sqrt( (x_2-x_1)^2 + (y_2 - y_1)^2 + 4(1-cos(theta_2 - theta_1)) )
+                    #TODO   however, this is to be CAREFULLY checked !!!
+                    #TODO playing among spaces, every time we define a space we have to define the distance in it
                     is_acceptable_goal = goal_dist < goal_dist_tolerance and goal_ang < goal_ang_tolerance
                     new_nearest_node = None  # type: Node
                     if not is_acceptable_goal:
@@ -182,7 +205,7 @@ class Planner(object):
                         new_nearest_node, new_nearest_dist = self.tree.get_nearest_node(new_node, ptg)
                         if new_nearest_node is not None:
                             new_nearest_ang = abs(helper.angle_distance(new_pose.theta, new_nearest_node.pose.theta))
-                            accept_this_node = new_nearest_dist >= 0.1 or new_nearest_ang >= 0.35
+                            accept_this_node = new_nearest_dist >= 0.1 or new_nearest_ang >= 0.35 #TODO fix params in the conf file
                             # ToDo: make 0.1 and 0.35 configurable parameters
                     if not accept_this_node:
                         continue
@@ -247,7 +270,7 @@ class Planner(object):
                 return edge
 
     def solve_av(self, init_pose: PoseR2S1, goal_pose: PoseR2S1, goal_dist_tolerance=1.,
-                 goal_ang_tolerance=np.deg2rad(180)):
+                 goal_ang_tolerance=np.deg2rad(180)): #TODO fix params
         assert self.world is not None, 'load_world_map must be called first'
         self._init_pose = init_pose
         self._goal_pose = goal_pose
@@ -255,7 +278,7 @@ class Planner(object):
         solution_found = False
         counter = 0
         min_goal_dist_yet = float('inf')
-        while not solution_found and counter < 2000:
+        while not solution_found and counter < 2000: #TODO fix 2000 see comment in solve
             counter += 1
             rand_pose = self.world.get_random_pose(goal_pose)
             candidate_new_nodes = sorteddict.SortedDict()
@@ -271,7 +294,7 @@ class Planner(object):
             D_max = min(2., ptg.distance_ref)  # ToDo : make 2. a configurable parameter
             is_exact, k_rand, d_rand = ptg.inverse_WS2TP(rand_pose_rel)
             d_rand *= ptg.distance_ref
-            max_dist_for_obstacles = 1.2 * ptg.distance_ref
+            max_dist_for_obstacles = 1.2 * ptg.distance_ref   #TODO see my comment in solve()
             obstacles_rel = self.world.transform_point_cloud(ptg_nearest_pose, max_dist_for_obstacles)
             obstacles_TP = self.transform_toTP_obstacles(ptg, obstacles_rel, max_dist_for_obstacles)
             d_free = obstacles_TP[k_rand]
@@ -283,7 +306,8 @@ class Planner(object):
                 new_pose = ptg_nearest_pose + new_pose_rel  # type: PoseR2S1
                 accept_this_node = True
                 goal_dist = new_pose.distance_2d(goal_pose)
-                goal_ang = abs(helper.angle_distance(new_pose.theta, goal_pose.theta))
+                goal_ang = abs(helper.angle_distance(new_pose.theta, goal_pose.theta)) #TODO distance see comment in solve
+                # TODO the distance has to consider the orientation of the trailer
                 is_acceptable_goal = goal_dist < goal_dist_tolerance and goal_ang < goal_ang_tolerance
                 new_nearest_node = None  # type: Node
                 if not is_acceptable_goal:

@@ -4,6 +4,8 @@ from typing import List, Tuple
 import math
 
 
+#MB: really good job here redefining all the algebra in a simple and comprehensive way!!!
+
 class PointR2(object):
     """
     define a 2d point (x,y) in R2 euclidean space

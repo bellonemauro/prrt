@@ -22,7 +22,7 @@ class PTG(metaclass=ABCMeta):
         :type resolution: float > 0 (in meters). Resolution of map grid
         """
         self._vehicle = vehicle
-        self._delta_t = 0.0005
+        self._delta_t = 0.0005  #TODO explain initializations
         self._alpha_resolution = np.deg2rad(3.)
         self._t_max = 100.0
         self._n_max = 10000

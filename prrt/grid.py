@@ -168,7 +168,7 @@ class WorldGrid(object):
         """
         return idy * self.y_resolution
 
-    def get_random_pose(self, bias_pose: PoseR2S1 = None, bias=0.05):
+    def get_random_pose(self, bias_pose: PoseR2S1 = None, bias=0.05): #MB: the bias should be defined into the configuration file
         if bias_pose is not None:
             rand = random.uniform(0, 1)
             if rand <= bias:
